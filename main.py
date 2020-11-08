@@ -44,17 +44,17 @@ class LedService:
 
 
 class Client:
-    # set scope
-    scope = "user-read-currently-playing"
-
-    song_name = ""
-    artist_name = ""
-    is_playing = "paused"
-    progress_ms = 0
-    duration_ms = 0
-    id = ""
-
     def __init__(self):
+        self.song_name = ""
+        self.artist_name = ""
+        self.is_playing = "paused"
+        self.progress_ms = 0
+        self.duration_ms = 0
+        self.bpm = 120
+
+        # set scope
+        self.scope = "user-read-currently-playing"
+
         auth_manager = SpotifyOAuth(
             config.CLIENT_ID,
             config.CLIENT_SECRET,
@@ -70,11 +70,17 @@ class Client:
     def fetch_worker(self):
         while True:
             result = self.sp.currently_playing("JP")
+            if self.song_name != result["item"]["name"]:
+                print("music is changed!")
+                features = self.get_audio_features(result["item"]["id"])
+                self.bpm = features[0]["tempo"]
+
             self.song_name = result["item"]["name"]
             self.artist_name = result["item"]["album"]["artists"][0]["name"]
             self.is_playing = "playing" if result["is_playing"] else "paused"
             self.progress_ms = result["progress_ms"]
             self.duration_ms = result["item"]["duration_ms"]
+
             time.sleep(3)
 
     def get_audio_features(self, id):
@@ -85,6 +91,7 @@ class Client:
         print(self.song_name, "by", self.artist_name)
         print("state: ", self.is_playing)
         print(self.progress_ms, "/", self.duration_ms, "ms")
+        print("tempo:", self.bpm)
         print()
 
     def print_worker(self):
@@ -100,18 +107,21 @@ if __name__ == "__main__":
     # データの取得とプリントはスレッドへ
     t1 = threading.Thread(target=client.fetch_worker)
     t2 = threading.Thread(target=client.print_worker)
+    t3 = threading.Thread(target=ledService.blinking_led)
 
     # デーモンにする
     # メインスレッドが終了したときに自動で止まってくれます
     t1.setDaemon(True)
     t2.setDaemon(True)
+    t3.setDaemon(True)
 
     t1.start()
     t2.start()
+    t3.start()
 
     try:
-        # ledを点滅させる
-        ledService.blinking_led()
+        while True:
+            pass
     except KeyboardInterrupt:
         # ctrl+c でcleanupして終了
         ledService.cleanup()
