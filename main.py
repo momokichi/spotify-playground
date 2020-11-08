@@ -7,8 +7,6 @@ import RPi.GPIO as GPIO
 import threading
 import config
 
-SLEEP_TIME = 3
-
 
 class LedService:
     # ポート番号の定義
@@ -40,15 +38,16 @@ class LedService:
             self.switch_red_led(False)
             time.sleep(0.5)
 
-    def bpm_lighting(self, bpm, is_playing):
-        if is_playing == "playing":
-            self.switch_red_led(True)
-            time.sleep(0.1)
-            self.switch_red_led(False)
-            time.sleep(60 / bpm - 0.1)
-        else:
-            self.switch_red_led(False)
-            time.sleep(SLEEP_TIME)
+    def bpm_lighting(self):
+        while True:
+            if is_playing:
+                self.switch_red_led(True)
+                time.sleep(0.1)
+                self.switch_red_led(False)
+                time.sleep(60 / bpm - 0.1)
+            else:
+                self.switch_red_led(False)
+                time.sleep(0.1)
 
     # 終了時にはこれを呼び出す
     def cleanup(self):
@@ -59,7 +58,7 @@ class Client:
     def __init__(self):
         self.song_name = ""
         self.artist_name = ""
-        self.is_playing = "paused"
+        self.is_playing = True
         self.progress_ms = 0
         self.duration_ms = 0
         self.bpm = 120
@@ -82,18 +81,28 @@ class Client:
     def fetch_worker(self):
         while True:
             result = self.sp.currently_playing("JP")
-            if self.song_name != result["item"]["name"]:
-                print("music is changed!")
+            if (
+                self.song_name != result["item"]["name"]
+                or self.is_playing != result["is_playing"]
+            ):
                 features = self.get_audio_features(result["item"]["id"])
                 self.bpm = features[0]["tempo"]
+                self.is_playing = result["is_playing"]
+                self.update()
 
             self.song_name = result["item"]["name"]
             self.artist_name = result["item"]["album"]["artists"][0]["name"]
-            self.is_playing = "playing" if result["is_playing"] else "paused"
             self.progress_ms = result["progress_ms"]
             self.duration_ms = result["item"]["duration_ms"]
 
             time.sleep(SLEEP_TIME)
+
+    def update(self):
+        global bpm
+        global is_playing
+        print("updated!")
+        bpm = self.bpm
+        is_playing = self.is_playing
 
     def get_audio_features(self, id):
         return self.sp.audio_features(id)
@@ -101,7 +110,7 @@ class Client:
     def print_info(self):
         print(datetime.datetime.now())
         print(self.song_name, "by", self.artist_name)
-        print("state: ", self.is_playing)
+        print("state: ", "playing" if self.is_playing else "paused")
         print(self.progress_ms, "/", self.duration_ms, "ms")
         print("tempo:", self.bpm)
         print()
@@ -113,24 +122,33 @@ class Client:
 
 
 if __name__ == "__main__":
+    SLEEP_TIME = 3
+
+    is_playing = False
+    bpm = 120
+
     client = Client()
     ledService = LedService()
 
     # データの取得とプリントはスレッドへ
     t1 = threading.Thread(target=client.fetch_worker)
     t2 = threading.Thread(target=client.print_worker)
+    t3 = threading.Thread(target=ledService.bpm_lighting)
+    # t3 = threading.Thread(target=ledService.blinking_led)
 
     # デーモンにする
     # メインスレッドが終了したときに自動で止まってくれます
     t1.setDaemon(True)
     t2.setDaemon(True)
+    t3.setDaemon(True)
 
     t1.start()
     t2.start()
+    t3.start()
 
     try:
         while True:
-            ledService.bpm_lighting(client.bpm, client.is_playing)
+            pass
     except KeyboardInterrupt:
         # ctrl+c でcleanupして終了
         ledService.cleanup()
