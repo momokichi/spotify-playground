@@ -56,9 +56,9 @@ class LedService:
 
 class Client:
     def __init__(self):
-        self.song_name = ""
-        self.artist_name = ""
-        self.is_playing = True
+        self.song_name = "xxx"
+        self.artist_name = "xxx"
+        self.is_playing = False
         self.progress_ms = 0
         self.duration_ms = 0
         self.bpm = 120
@@ -81,6 +81,8 @@ class Client:
     def fetch_worker(self):
         while True:
             result = self.sp.currently_playing("JP")
+            if result == None:
+                continue
             if (
                 self.song_name != result["item"]["name"]
                 or self.is_playing != result["is_playing"]
