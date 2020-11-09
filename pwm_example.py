@@ -30,26 +30,32 @@ full_green_led = GPIO.PWM(Full_green_pin, 100)
 
 red_led = GPIO.PWM(red_pin, 100)
 
+full_color_led = (full_red_led, full_blue_led, full_green_led)
+
 # start
-full_red_led.start(0)
-full_blue_led.start(0)
-full_green_led.start(0)
+for led in full_color_led:
+    led.start(0)
 
 red_led.start(0)
 
 try:
     while True:
-        for dc in range(0, 100, 5):
-            full_green_led.ChangeDutyCycle(dc)
-            full_blue_led.ChangeDutyCycle(dc)
-            full_red_led.ChangeDutyCycle(dc)
-            time.sleep(0.05)
-        for dc in range(100, 0, -5):
-            full_blue_led.ChangeDutyCycle(dc)
-            full_green_led.ChangeDutyCycle(dc)
-            full_red_led.ChangeDutyCycle(dc)
-            time.sleep(0.05)
+        for led in full_color_led:
+            for dc in range(0, 100, 5):
+                led.ChangeDutyCycle(dc)
+                time.sleep(0.05)
+                # led.ChangeDutyCycle(0)
+                # time.sleep(0.05)
+        for led in full_color_led[::-1]:
+            for dc in range(100, 0, -5):
+                led.ChangeDutyCycle(dc)
+                time.sleep(0.05)
+                # led.ChangeDutyCycle(0)
+                # time.sleep(0.05)
 except KeyboardInterrupt:
+    full_red_led.stop()
+    full_blue_led.stop()
+    full_green_led.stop()
     red_led.stop()
     GPIO.cleanup()
     sys.exit()
