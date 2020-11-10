@@ -25,6 +25,15 @@ class LedService:
 
         GPIO.setup(self.red_pin, GPIO.OUT)
 
+        full_red_led = GPIO.PWM(self.Full_red_pin, 100)
+        full_blue_led = GPIO.PWM(self.Full_blue_pin, 100)
+        full_green_led = GPIO.PWM(self.Full_green_pin, 100)
+
+        self.full_color_led = (full_red_led, full_blue_led, full_green_led)
+
+        for led in self.full_color_led:
+            led.start(0)
+
     def switch_red_led(self, is_turnon):
         if is_turnon:
             GPIO.output(self.red_pin, GPIO.HIGH)
@@ -48,6 +57,17 @@ class LedService:
             else:
                 self.switch_red_led(False)
                 time.sleep(0.1)
+
+    def rainbow(self):
+        while True:
+            for led in self.full_color_led:
+                for dc in range(0, 100, 5):
+                    led.ChangeDutyCycle(dc)
+                    time.sleep(0.05)
+            for led in self.full_color_led[::-1]:
+                for dc in range(100, 0, -5):
+                    led.ChangeDutyCycle(dc)
+                    time.sleep(0.05)
 
     # 終了時にはこれを呼び出す
     def cleanup(self):
@@ -137,16 +157,15 @@ if __name__ == "__main__":
     t2 = threading.Thread(target=client.print_worker)
     t3 = threading.Thread(target=ledService.bpm_lighting)
     # t3 = threading.Thread(target=ledService.blinking_led)
+    t4 = threading.Thread(target=ledService.rainbow)
 
     # デーモンにする
     # メインスレッドが終了したときに自動で止まってくれます
-    t1.setDaemon(True)
-    t2.setDaemon(True)
-    t3.setDaemon(True)
 
-    t1.start()
-    t2.start()
-    t3.start()
+    threads = [t1, t2, t3, t4]
+    for thread in threads:
+        thread.setDaemon(True)
+        thread.start()
 
     try:
         while True:
