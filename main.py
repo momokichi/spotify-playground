@@ -8,6 +8,34 @@ import threading
 import config
 
 
+class MoterService:
+    MOTORPIN1 = 27
+    MOTORPIN2 = 22
+
+    def __init__(self):
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.MOTORPIN1, GPIO.OUT)
+        GPIO.setup(self.MOTORPIN2, GPIO.OUT)
+
+        # PWM/100Hzに設定
+        self.ML1 = GPIO.PWM(self.MOTORPIN1, 100)
+        self.ML2 = GPIO.PWM(self.MOTORPIN2, 100)
+        # 初期化
+        self.ML1.start(0)
+        self.ML2.start(0)
+
+    def start(self):
+        while True:
+            self.ML1.ChangeDutyCycle(10)
+            self.ML2.ChangeDutyCycle(0)
+            time.sleep(3)
+
+            self.ML1.ChangeDutyCycle(0)
+            self.ML2.ChangeDutyCycle(0)
+            time.sleep(3)
+
+
 class LedService:
     # ポート番号の定義
     Full_red_pin = 11
@@ -151,6 +179,7 @@ if __name__ == "__main__":
 
     client = Client()
     ledService = LedService()
+    # moterService = MoterService()
 
     # データの取得とプリントはスレッドへ
     t1 = threading.Thread(target=client.fetch_worker)
@@ -158,6 +187,7 @@ if __name__ == "__main__":
     t3 = threading.Thread(target=ledService.bpm_lighting)
     # t3 = threading.Thread(target=ledService.blinking_led)
     t4 = threading.Thread(target=ledService.rainbow)
+    # t5 = threading.Thread(target=moterService.start)
 
     # デーモンにする
     # メインスレッドが終了したときに自動で止まってくれます
