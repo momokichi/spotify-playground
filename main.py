@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import sys
@@ -6,6 +7,37 @@ import datetime
 import RPi.GPIO as GPIO
 import threading
 import config
+
+
+class ServoService:
+    SERVO_PIN = 26
+    CENTER = 7.25
+
+    def __init__(self):
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.SERVO_PIN, GPIO.OUT)
+        self.servo = GPIO.PWM(self.SERVO_PIN, 50)
+        self.servo.start(0)
+        self.servo.ChangeDutyCycle(self.CENTER)
+        time.sleep(0.5)
+
+    def start(self):
+        a = 1.5
+        s = 0.03
+        diff = 5
+        while True:
+            # self.servo.ChangeDutyCycle(self.CENTER + a)
+            # time.sleep(60*2/bpm - 0.1)
+            # self.servo.ChangeDutyCycle(self.CENTER - a)
+            # time.sleep(60*2/bpm - 0.1)
+            for degree in range(-90, 91, diff):
+                dc = 2.5 + (12.0 - 2.5) / 180 * (degree + 90)
+                self.servo.ChangeDutyCycle(dc)
+                time.sleep(s)
+            for degree in range(91, -90, -diff):
+                dc = 2.5 + (12.0 - 2.5) / 180 * (degree + 90)
+                self.servo.ChangeDutyCycle(dc)
+                time.sleep(s)
 
 
 class MoterService:
@@ -172,7 +204,7 @@ class Client:
 
 
 if __name__ == "__main__":
-    SLEEP_TIME = 3
+    SLEEP_TIME = 1
 
     is_playing = False
     bpm = 120
@@ -180,19 +212,21 @@ if __name__ == "__main__":
     client = Client()
     ledService = LedService()
     # moterService = MoterService()
+    # servoService = ServoService()
 
     # データの取得とプリントはスレッドへ
     t1 = threading.Thread(target=client.fetch_worker)
-    t2 = threading.Thread(target=client.print_worker)
+    # t2 = threading.Thread(target=client.print_worker)
     t3 = threading.Thread(target=ledService.bpm_lighting)
     # t3 = threading.Thread(target=ledService.blinking_led)
     t4 = threading.Thread(target=ledService.rainbow)
     # t5 = threading.Thread(target=moterService.start)
+    # t6 = threading.Thread(target=servoService.start)
 
     # デーモンにする
     # メインスレッドが終了したときに自動で止まってくれます
 
-    threads = [t1, t2, t3, t4]
+    threads = [t1, t3, t4]
     for thread in threads:
         thread.setDaemon(True)
         thread.start()
