@@ -7,92 +7,34 @@ import datetime
 import RPi.GPIO as GPIO
 import threading
 import config
-
-
-class ServoService:
-    SERVO_PIN = 26
-    CENTER = 7.25
-
-    def __init__(self):
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.SERVO_PIN, GPIO.OUT)
-        self.servo = GPIO.PWM(self.SERVO_PIN, 50)
-        self.servo.start(0)
-        self.servo.ChangeDutyCycle(self.CENTER)
-        time.sleep(0.5)
-
-    def start(self):
-        a = 1.5
-        s = 0.03
-        diff = 5
-        while True:
-            # self.servo.ChangeDutyCycle(self.CENTER + a)
-            # time.sleep(60*2/bpm - 0.1)
-            # self.servo.ChangeDutyCycle(self.CENTER - a)
-            # time.sleep(60*2/bpm - 0.1)
-            for degree in range(-90, 91, diff):
-                dc = 2.5 + (12.0 - 2.5) / 180 * (degree + 90)
-                self.servo.ChangeDutyCycle(dc)
-                time.sleep(s)
-            for degree in range(91, -90, -diff):
-                dc = 2.5 + (12.0 - 2.5) / 180 * (degree + 90)
-                self.servo.ChangeDutyCycle(dc)
-                time.sleep(s)
-
-
-class MoterService:
-    MOTORPIN1 = 27
-    MOTORPIN2 = 22
-
-    def __init__(self):
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.MOTORPIN1, GPIO.OUT)
-        GPIO.setup(self.MOTORPIN2, GPIO.OUT)
-
-        # PWM/100Hzに設定
-        self.ML1 = GPIO.PWM(self.MOTORPIN1, 100)
-        self.ML2 = GPIO.PWM(self.MOTORPIN2, 100)
-        # 初期化
-        self.ML1.start(0)
-        self.ML2.start(0)
-
-    def start(self):
-        while True:
-            self.ML1.ChangeDutyCycle(10)
-            self.ML2.ChangeDutyCycle(0)
-            time.sleep(3)
-
-            self.ML1.ChangeDutyCycle(0)
-            self.ML2.ChangeDutyCycle(0)
-            time.sleep(3)
+from RpiMotorLib import RpiMotorLib
 
 
 class LedService:
     # ポート番号の定義
-    Full_red_pin = 11
-    Full_blue_pin = 12
-    Full_green_pin = 13
+    # Full_red_pin = 11
+    # Full_blue_pin = 12
+    # Full_green_pin = 13
 
     red_pin = 17
 
     def __init__(self):
         # GPIOの設定
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.Full_red_pin, GPIO.OUT)
-        GPIO.setup(self.Full_blue_pin, GPIO.OUT)
-        GPIO.setup(self.Full_green_pin, GPIO.OUT)
+        # GPIO.setup(self.Full_red_pin, GPIO.OUT)
+        # GPIO.setup(self.Full_blue_pin, GPIO.OUT)
+        # GPIO.setup(self.Full_green_pin, GPIO.OUT)
 
         GPIO.setup(self.red_pin, GPIO.OUT)
 
-        full_red_led = GPIO.PWM(self.Full_red_pin, 100)
-        full_blue_led = GPIO.PWM(self.Full_blue_pin, 100)
-        full_green_led = GPIO.PWM(self.Full_green_pin, 100)
+        # full_red_led = GPIO.PWM(self.Full_red_pin, 100)
+        # full_blue_led = GPIO.PWM(self.Full_blue_pin, 100)
+        # full_green_led = GPIO.PWM(self.Full_green_pin, 100)
 
-        self.full_color_led = (full_red_led, full_blue_led, full_green_led)
+        # self.full_color_led = (full_red_led, full_blue_led, full_green_led)
 
-        for led in self.full_color_led:
-            led.start(0)
+        # for led in self.full_color_led:
+        #     led.start(0)
 
     def switch_red_led(self, is_turnon):
         if is_turnon:
@@ -118,16 +60,16 @@ class LedService:
                 self.switch_red_led(False)
                 time.sleep(0.1)
 
-    def rainbow(self):
-        while True:
-            for led in self.full_color_led:
-                for dc in range(0, 100, 5):
-                    led.ChangeDutyCycle(dc)
-                    time.sleep(0.05)
-            for led in self.full_color_led[::-1]:
-                for dc in range(100, 0, -5):
-                    led.ChangeDutyCycle(dc)
-                    time.sleep(0.05)
+    # def rainbow(self):
+    #     while True:
+    #         for led in self.full_color_led:
+    #             for dc in range(0, 100, 5):
+    #                 led.ChangeDutyCycle(dc)
+    #                 time.sleep(0.05)
+    #         for led in self.full_color_led[::-1]:
+    #             for dc in range(100, 0, -5):
+    #                 led.ChangeDutyCycle(dc)
+    #                 time.sleep(0.05)
 
     # 終了時にはこれを呼び出す
     def cleanup(self):
@@ -203,37 +145,51 @@ class Client:
             time.sleep(SLEEP_TIME)
 
 
+class BpmWorker:
+    def __init__(self):
+        print('hello')
+
+    def worker(self):
+        while True:
+            global isReversed
+            global bpm
+            isReversed = not isReversed
+            time.sleep(60/bpm)
+
+
 if __name__ == "__main__":
-    SLEEP_TIME = 1
+    SLEEP_TIME = 3
+    GpioPins = [26, 19, 22, 27]
+    isReversed = True
 
     is_playing = False
     bpm = 120
 
     client = Client()
     ledService = LedService()
-    # moterService = MoterService()
-    # servoService = ServoService()
+    bpmWorker = BpmWorker()
 
     # データの取得とプリントはスレッドへ
     t1 = threading.Thread(target=client.fetch_worker)
-    # t2 = threading.Thread(target=client.print_worker)
+    t2 = threading.Thread(target=client.print_worker)
     t3 = threading.Thread(target=ledService.bpm_lighting)
-    # t3 = threading.Thread(target=ledService.blinking_led)
-    t4 = threading.Thread(target=ledService.rainbow)
-    # t5 = threading.Thread(target=moterService.start)
-    # t6 = threading.Thread(target=servoService.start)
+    # t4 = threading.Thread(target=ledService.rainbow)
+    t4 = threading.Thread(target=bpmWorker.worker)
 
     # デーモンにする
     # メインスレッドが終了したときに自動で止まってくれます
 
-    threads = [t1, t3, t4]
+    threads = [t1, t2, t3, t4]
     for thread in threads:
         thread.setDaemon(True)
         thread.start()
 
+    mymotertest = RpiMotorLib.BYJMotor("MyMotorOne", "28BYJ")
+
     try:
         while True:
-            pass
+            mymotertest.motor_run(GpioPins, .0008, 1,
+                                  isReversed, False, "half", 0)
     except KeyboardInterrupt:
         # ctrl+c でcleanupして終了
         ledService.cleanup()
